@@ -1,0 +1,101 @@
+{
+  "version": "1.0",
+  "trained_on": 214,
+  "files": 1,
+  "global_stats": {
+    "mean": 2.4906074766355153,
+    "std": 0.003998263663669551,
+    "min": 2.48,
+    "max": 2.5,
+    "p5": 2.4865,
+    "p25": 2.49,
+    "p75": 2.49,
+    "p95": 2.5,
+    "median": 2.49,
+    "count": 214
+  },
+  "zscore_params": {
+    "mean": 2.4906074766355153,
+    "std": 0.003998263663669551,
+    "anomaly_threshold": 2.5,
+    "warning_threshold": 1.5
+  },
+  "classification_thresholds": {
+    "critical_low": 2.4826109493081763,
+    "low": 2.4866092129718456,
+    "normal_low": 2.4866092129718456,
+    "normal_high": 2.494605740299185,
+    "high": 2.494605740299185,
+    "critical_high": 2.4986040039628543
+  },
+  "transition_matrix": {
+    "critical_low": {
+      "critical_low": 0.0,
+      "low": 0.0,
+      "normal": 0.8182,
+      "high": 0.0,
+      "critical_high": 0.1818
+    },
+    "low": {
+      "critical_low": 0,
+      "low": 0,
+      "normal": 0,
+      "high": 0,
+      "critical_high": 0
+    },
+    "normal": {
+      "critical_low": 0.0562,
+      "low": 0.0,
+      "normal": 0.8371,
+      "high": 0.0,
+      "critical_high": 0.1067
+    },
+    "high": {
+      "critical_low": 0,
+      "low": 0,
+      "normal": 0,
+      "high": 0,
+      "critical_high": 0
+    },
+    "critical_high": {
+      "critical_low": 0.0417,
+      "low": 0.0,
+      "normal": 0.8333,
+      "high": 0.0,
+      "critical_high": 0.125
+    }
+  },
+  "regression": {
+    "slope": -9.703952906760568e-06,
+    "intercept": 2.4916409476200836,
+    "n": 214
+  },
+  "stability_score": 95.7,
+  "label_distribution": {
+    "normal": 179,
+    "critical_high": 24,
+    "critical_low": 11
+  },
+  "file_stats": [
+    {
+      "mean": 2.4906074766355153,
+      "std": 0.003998263663669551,
+      "min": 2.48,
+      "max": 2.5,
+      "p5": 2.4865,
+      "p25": 2.49,
+      "p75": 2.49,
+      "p95": 2.5,
+      "median": 2.49,
+      "count": 214,
+      "file": "/mnt/user-data/uploads/voltagedata.txt"
+    }
+  ],
+  "histogram": {
+    "bins": 20,
+    "range": [
+      2.48,
+      2.5
+    ]
+  }
+}

@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PowerSense - AI Power Analyzer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        :root {
+            --bg: #f5f5f5;
+            --surface: #ffffff;
+            --surface2: #fafafa;
+            --border: #e0e0e0;
+            --text: #212121;
+            --muted: #666666;
+            --accent: #1976d2;
+            --accent-glow: rgba(25,118,210,0.08);
+            --green: #388e3c;
+            --green-dim: #e8f5e9;
+            --red: #d32f2f;
+            --red-dim: #ffebee;
+            --amber: #f57c00;
+            --amber-dim: #fff3e0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+        
+        /* HEADER & NAV */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        nav {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+        }
+        
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+            cursor: pointer;
+        }
+        
+        .nav-brand span { color: var(--accent); }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+        
+        .nav-links a {
+            text-decoration: none;
+            color: var(--muted);
+            font-weight: 500;
+            cursor: pointer;
+            transition: color 0.2s;
+            padding: 0.5rem 0;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+        
+        /* PAGES */
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 3rem;
+        }
+        
+        .page {
+            display: none;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        /* HERO */
+        .hero {
+            margin-bottom: 2rem;
+        }
+        
+        .hero h1 {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .hero p {
+            color: var(--muted);
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        
+        /* UPLOAD SECTION */
+        .upload-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        @media (max-width: 600px) {
+            .upload-grid { grid-template-columns: 1fr; }
+        }
+        
+        .upload-card {
+            background: var(--surface);
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 2rem;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        
+        .upload-card:hover,
+        .upload-card.drag {
+            border-color: var(--accent);
+            background: var(--accent-glow);
+        }
+        
+        .upload-card.loaded {
+            border-style: solid;
+            border-color: var(--green);
+            background: var(--green-dim);
+        }
+        
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 1rem;
+        }
+        
+        .upload-icon svg {
+            width: 100%;
+            height: 100%;
+            stroke: var(--accent);
+            fill: none;
+            stroke-width: 2;
+        }
+        
+        .upload-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .upload-hint {
+            font-size: 12px;
+            color: var(--muted);
+        }
+        
+        /* SETTINGS CARD */
+        .settings-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .settings-row {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .settings-label {
+            font-size: 13px;
+            color: var(--muted);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        
+        .settings-input {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 13px;
+            width: 140px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        
+        .settings-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(25,118,210,0.1);
+        }
+        
+        /* BUTTONS */
+        .action-bar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid transparent;
+            background: var(--surface2);
+            color: var(--text);
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: #ebebeb;
+        }
+        
+        .btn-primary {
+            background: var(--accent);
+            color: #ffffff;
+            box-shadow: 0 2px 4px rgba(25,118,210,0.2);
+        }
+        
+        .btn-primary:hover {
+            background: #1565c0;
+        }
+        
+        .btn-success {
+            background: var(--green);
+            color: #ffffff;
+        }
+        
+        .btn-success:hover {
+            background: #2e7d32;
+        }
+        
+        .btn-danger {
+            background: var(--red);
+            color: #ffffff;
+        }
+        
+        .btn-danger:hover {
+            background: #c62828;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+        
+        /* RESULTS SECTION */
+        .results-section {
+            display: none;
+        }
+        
+        .results-section.active {
+            display: block;
+        }
+        
+        .section-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+        
+        /* STATS GRID */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 12px;
+            margin-bottom: 1.5rem;
+        }
+        
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            border-top: 3px solid var(--accent);
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: var(--muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        
+        .stat-value {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text);
+        }
+        
+        .stat-sub {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+        
+        /* CHARTS */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 3fr 2fr;
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        @media (max-width: 700px) {
+            .charts-row { grid-template-columns: 1fr; }
+        }
+        
+        .chart-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem;
+        }
+        
+        .chart-wrap {
+            position: relative;
+            height: 250px;
+        }
+        
+        /* HISTORY TABLE */
+        .table-container {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        thead {
+            background: var(--surface2);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        th {
+            padding: 12px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        
+        tbody tr:hover {
+            background: var(--surface2);
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 11px;
+        }
+        
+        /* ALERTS */
+        .alert {
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        .alert.show {
+            display: block;
+        }
+        
+        .alert-success {
+            background: var(--green-dim);
+            border: 1px solid var(--green);
+            color: var(--green);
+        }
+        
+        .alert-error {
+            background: var(--red-dim);
+            border: 1px solid var(--red);
+            color: var(--red);
+        }
+        
+        .alert-info {
+            background: var(--accent-glow);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+        }
+        
+        /* LOADING */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* INSIGHTS */
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .insight-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.3rem;
+        }
+        
+        .insight-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .insight-body {
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 2rem;
+            font-size: 12px;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <nav>
+        <div class="nav-brand" onclick="switchPage('dashboard')">
+            <span>⚡</span>
+            Power<span>Sense</span>
+        </div>
+        <ul class="nav-links">
+            <li><a onclick="switchPage('dashboard')" class="nav-link active" data-page="dashboard">Dashboard</a></li>
+            <li><a onclick="switchPage('history')" class="nav-link" data-page="history">History</a></li>
+            <li><a onclick="switchPage('about')" class="nav-link" data-page="about">About</a></li>
+        </ul>
+    </nav>
+</header>
+
+<main>
+    <div id="alert" class="alert"></div>
+    
+    <!-- PAGE: DASHBOARD -->
+    <div id="dashboard" class="page active">
+        <div class="hero">
+            <h1>Analyze Your <span style="color: var(--accent)">Power Usage</span></h1>
+            <p>Upload power logs for comprehensive analysis, forecasting, and recommendations</p>
+        </div>
+        
+        <!-- Settings -->
+        <div class="settings-card">
+            <div class="section-label">Settings</div>
+            <div class="settings-row">
+                <span class="settings-label">Cost per kWh (₦):</span>
+                <input class="settings-input" type="number" id="tariff" value="68" min="1" max="500" step="1"/>
+                <span class="settings-label">Appliance wattage (W):</span>
+                <input class="settings-input" type="number" id="wattage" value="0" min="0" max="5000" step="10" placeholder="Auto-detect"/>
+            </div>
+        </div>
+        
+        <!-- Upload -->
+        <div class="upload-grid">
+            <div class="upload-card" id="log-zone" ondrop="handleDrop(event, 'log')" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" onclick="document.getElementById('log-input').click()">
+                <div class="upload-icon">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                </div>
+                <div class="upload-title">Power Log File</div>
+                <div class="upload-hint">Drag & drop or click to upload .txt file</div>
+                <div id="log-name"></div>
+            </div>
+            <div class="upload-card" id="model-zone" ondrop="handleDrop(event, 'model')" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" onclick="document.getElementById('model-input').click()">
+                <div class="upload-icon">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>
+                </div>
+                <div class="upload-title">Trained Model (Optional)</div>
+                <div class="upload-hint">power_model.json for comparison</div>
+                <div id="model-name"></div>
+            </div>
+        </div>
+        <input type="file" id="log-input" accept=".txt,.log,.csv" style="display:none;">
+        <input type="file" id="model-input" accept=".json" style="display:none;">
+        
+        <!-- Actions -->
+        <div class="action-bar">
+            <button class="btn btn-primary" id="analyze-btn" onclick="analyzeFile()" disabled>
+                <span>▶</span> Analyse
+            </button>
+            <button class="btn" id="reset-btn" onclick="resetForm()" style="display:none;">
+                <span>↻</span> Reset
+            </button>
+        </div>
+        
+        <!-- Results -->
+        <div id="results-section" class="results-section">
+            <div class="section-label">Analysis Results</div>
+            
+            <!-- Stats -->
+            <div class="stats-grid" id="stats-grid"></div>
+            
+            <!-- Charts -->
+            <div class="charts-row">
+                <div class="chart-card">
+                    <h3 style="margin-bottom: 1rem; font-size: 14px;">Power Readings Over Time</h3>
+                    <div class="chart-wrap"><canvas id="line-chart"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h3 style="margin-bottom: 1rem; font-size: 14px;">Distribution</h3>
+                    <div class="chart-wrap"><canvas id="dist-chart"></canvas></div>
+                </div>
+            </div>
+            
+            <!-- Forecast -->
+            <div class="chart-card" style="margin-bottom: 1.5rem;">
+                <h3 style="margin-bottom: 1rem; font-size: 14px;">10-Step Forecast</h3>
+                <div class="chart-wrap"><canvas id="forecast-chart"></canvas></div>
+            </div>
+            
+            <!-- Insights -->
+            <div style="margin-bottom: 1.5rem;">
+                <div class="section-label">Key Insights & Recommendations</div>
+                <div id="insights-grid" class="insights-grid"></div>
+            </div>
+            
+            <!-- Export -->
+            <div class="action-bar">
+                <button class="btn btn-success" onclick="exportSession('csv')">📥 Export CSV</button>
+                <button class="btn btn-success" onclick="exportSession('json')">📥 Export JSON</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- PAGE: HISTORY -->
+    <div id="history" class="page">
+        <div class="hero">
+            <h1>Session <span style="color: var(--accent)">History</span></h1>
+            <p>View and manage all your past analyses</p>
+        </div>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Session Name</th>
+                        <th>Date</th>
+                        <th>Readings</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="history-table">
+                    <tr><td colspan="4" style="text-align: center; color: var(--muted);">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- PAGE: ABOUT -->
+    <div id="about" class="page">
+        <div class="hero">
+            <h1>About <span style="color: var(--accent)">PowerSense</span></h1>
+            <p>Intelligent Power Analysis System</p>
+        </div>
+        
+        <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 2rem; margin-top: 2rem;">
+            <h3 style="margin-bottom: 1rem; color: var(--accent);">Features</h3>
+            <ul style="list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                <li><strong>✓ Z-Score & Isolation Forest Anomaly Detection</strong></li>
+                <li><strong>✓ ARIMA Time-Series Forecasting</strong></li>
+                <li><strong>✓ Fourier Analysis for Pattern Detection</strong></li>
+                <li><strong>✓ Markov Chain State Transitions</strong></li>
+                <li><strong>✓ Cost Analysis & Recommendations</strong></li>
+                <li><strong>✓ Stability Scoring</strong></li>
+                <li><strong>✓ Full Export Capabilities</strong></li>
+                <li><strong>✓ Session History & Comparison</strong></li>
+            </ul>
+            
+            <h3 style="margin: 2rem 0 1rem; color: var(--accent);">Algorithms Used</h3>
+            <p style="color: var(--muted); line-height: 1.8; margin-bottom: 1rem;">
+                This application uses advanced machine learning algorithms including:
+                <br>• ARIMA (AutoRegressive Integrated Moving Average) for time-series forecasting
+                <br>• Isolation Forest for robust anomaly detection
+                <br>• Z-Score normalization for statistical analysis
+                <br>• Fourier Transform for cyclic pattern detection
+                <br>• Markov chains for state transition modeling
+                <br>• Linear regression for trend analysis
+            </p>
+            
+            <h3 style="margin: 2rem 0 1rem; color: var(--accent);">Getting Started</h3>
+            <p style="color: var(--muted); line-height: 1.8;">
+                1. Upload a power log file (CSV or TXT format)<br>
+                2. Set your electricity tariff and appliance wattage<br>
+                3. Click "Analyse" to run the full analysis<br>
+                4. View results, forecasts, and recommendations<br>
+                5. Export your findings as CSV or JSON
+            </p>
+        </div>
+    </div>
+</main>
+
+<footer>
+    PowerSense © 2026 | AI-Powered Energy Analysis | Backend: Flask + SQLite
+</footer>
+
+<script>
+// ========== GLOBAL STATE ==========
+let currentData = null;
+let currentSession = null;
+let lineChart = null;
+let distChart = null;
+let forecastChart = null;
+const API_BASE = 'http://localhost:5000/api';
+
+// ========== PAGE NAVIGATION ==========
+function switchPage(pageName) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    
+    document.getElementById(pageName).classList.add('active');
+    document.querySelector(`[data-page="${pageName}"]`).classList.add('active');
+    
+    if (pageName === 'history') {
+        loadHistory();
+    }
+}
+
+// ========== FILE HANDLING ==========
+function handleDragOver(e) {
+    e.preventDefault();
+    e.target.closest('.upload-card').classList.add('drag');
+}
+
+function handleDragLeave(e) {
+    e.target.closest('.upload-card').classList.remove('drag');
+}
+
+function handleDrop(e, type) {
+    e.preventDefault();
+    e.target.closest('.upload-card').classList.remove('drag');
+    const files = e.dataTransfer.files;
+    if (files.length) {
+        if (type === 'log') {
+            document.getElementById('log-input').files = files;
+            loadLog(files[0]);
+        } else {
+            document.getElementById('model-input').files = files;
+        }
+    }
+}
+
+document.getElementById('log-input')?.addEventListener('change', e => {
+    if (e.target.files[0]) loadLog(e.target.files[0]);
+});
+
+function loadLog(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+        currentData = parseLog(e.target.result);
+        if (currentData.values.length > 0) {
+            document.getElementById('log-zone').classList.add('loaded');
+            document.getElementById('log-name').innerHTML = `<div style="margin-top: 10px; font-size: 12px; color: var(--green);">✓ ${file.name}</div>`;
+            document.getElementById('analyze-btn').disabled = false;
+        }
+    };
+    reader.readAsText(file);
+}
+
+function parseLog(text) {
+    const values = [], timestamps = [];
+    for (const line of text.split('\n')) {
+        const parts = line.trim().split(/\s+/);
+        if (parts.length >= 2) {
+            const v = parseFloat(parts[1]);
+            if (!isNaN(v)) { values.push(v); timestamps.push(parts[0]); }
+        } else if (parts.length === 1) {
+            const v = parseFloat(parts[0]);
+            if (!isNaN(v)) { values.push(v); timestamps.push(null); }
+        }
+    }
+    return { values, timestamps };
+}
+
+// ========== ANALYSIS ==========
+async function analyzeFile() {
+    if (!currentData) return;
+    
+    showAlert('Uploading and analyzing...', 'info');
+    document.getElementById('analyze-btn').disabled = true;
+    
+    try {
+        const formData = new FormData();
+        const file = document.getElementById('log-input').files[0];
+        formData.append('file', file);
+        formData.append('session_name', `Analysis_${new Date().toLocaleString()}`);
+        formData.append('tariff', document.getElementById('tariff').value);
+        formData.append('wattage', document.getElementById('wattage').value);
+        
+        const response = await fetch(`${API_BASE}/upload`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+            currentSession = result.session_id;
+            renderResults(result.analysis);
+            showAlert('Analysis complete!', 'success');
+            document.getElementById('results-section').classList.add('active');
+            document.getElementById('reset-btn').style.display = '';
+        } else {
+            showAlert(result.error || 'Analysis failed', 'error');
+        }
+    } catch (error) {
+        showAlert('Error: ' + error.message, 'error');
+    }
+}
+
+function renderResults(analysis) {
+    const stats = analysis.global_stats;
+    const cost = analysis.cost_analysis;
+    
+    // Stats Grid
+    document.getElementById('stats-grid').innerHTML = `
+        <div class="stat-card">
+            <div class="stat-label">Mean Voltage</div>
+            <div class="stat-value">${stats.mean.toFixed(3)}V</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Stability</div>
+            <div class="stat-value" style="color: var(--green);">${analysis.stability_score}%</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Anomalies Detected</div>
+            <div class="stat-value">${analysis.zscore_anomalies.length}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Monthly Cost</div>
+            <div class="stat-value" style="color: var(--amber);">₦${cost.monthly_cost.toFixed(0)}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Trend</div>
+            <div class="stat-value">${analysis.trend_analysis.trend}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Forecast Method</div>
+            <div class="stat-value" style="font-size: 14px;">${analysis.forecast.method}</div>
+        </div>
+    `;
+    
+    // Charts
+    renderLineChart(currentData.values, analysis.zscore_anomalies);
+    renderDistChart(currentData.values);
+    renderForecastChart(analysis.forecast.forecast);
+    
+    // Insights
+    renderInsights(analysis);
+}
+
+function renderLineChart(values, anomalies) {
+    const ctx = document.getElementById('line-chart').getContext('2d');
+    if (lineChart) lineChart.destroy();
+    
+    lineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: values.map((_, i) => i + 1),
+            datasets: [{
+                data: values,
+                borderColor: '#1976d2',
+                borderWidth: 2,
+                pointBackgroundColor: values.map((_, i) => 
+                    anomalies.some(a => a.index === i && a.type === 'critical') ? '#d32f2f' :
+                    anomalies.some(a => a.index === i) ? '#f57c00' : 'rgba(25,118,210,0.2)'
+                ),
+                pointRadius: values.map((_, i) => 
+                    anomalies.some(a => a.index === i) ? 5 : 2
+                ),
+                fill: true,
+                backgroundColor: 'rgba(25,118,210,0.08)',
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { display: false }, y: { grid: { color: 'rgba(224,224,224,0.3)' } } }
+        }
+    });
+}
+
+function renderDistChart(values) {
+    const ctx = document.getElementById('dist-chart').getContext('2d');
+    if (distChart) distChart.destroy();
+    
+    const min = Math.min(...values), max = Math.max(...values);
+    const bins = 10, size = (max - min) / bins || 0.01;
+    const counts = Array(bins).fill(0);
+    values.forEach(v => {
+        const i = Math.min(Math.floor((v - min) / size), bins - 1);
+        counts[i]++;
+    });
+    
+    distChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: counts.map((_, i) => (min + i * size).toFixed(3)),
+            datasets: [{
+                data: counts,
+                backgroundColor: 'rgba(25,118,210,0.5)',
+                borderRadius: 4,
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { display: false } }, y: { grid: { color: 'rgba(224,224,224,0.3)' } } }
+        }
+    });
+}
+
+function renderForecastChart(forecast) {
+    const ctx = document.getElementById('forecast-chart').getContext('2d');
+    if (forecastChart) forecastChart.destroy();
+    
+    forecastChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: forecast.map((_, i) => `+${i + 1}`),
+            datasets: [{
+                label: 'Predicted',
+                data: forecast,
+                borderColor: '#388e3c',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                fill: false,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: true } },
+            scales: { y: { grid: { color: 'rgba(224,224,224,0.3)' } } }
+        }
+    });
+}
+
+function renderInsights(analysis) {
+    const recs = analysis.recommendations;
+    document.getElementById('insights-grid').innerHTML = recs.map((r, i) => `
+        <div class="insight-card">
+            <div class="insight-title">${r.message.split('.')[0]}</div>
+            <div class="insight-body">
+                <strong>Action:</strong> ${r.action}
+                <br><small style="color: var(--muted);">Severity: ${r.severity.toUpperCase()}</small>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ========== HISTORY ==========
+async function loadHistory() {
+    try {
+        const response = await fetch(`${API_BASE}/history`);
+        const result = await response.json();
+        
+        const tbody = document.getElementById('history-table');
+        tbody.innerHTML = result.sessions.map(s => `
+            <tr>
+                <td>${s.session_name}</td>
+                <td>${new Date(s.created_at).toLocaleDateString()}</td>
+                <td>${s.reading_count}</td>
+                <td class="action-buttons">
+                    <button class="btn btn-sm btn-primary" onclick="viewSession(${s.id})">View</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteSession(${s.id})">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+        
+        if (result.sessions.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--muted);">No sessions yet</td></tr>';
+        }
+    } catch (error) {
+        showAlert('Failed to load history: ' + error.message, 'error');
+    }
+}
+
+async function viewSession(id) {
+    try {
+        const response = await fetch(`${API_BASE}/session/${id}`);
+        const result = await response.json();
+        currentSession = id;
+        renderResults(result.analysis);
+        document.getElementById('results-section').classList.add('active');
+        switchPage('dashboard');
+    } catch (error) {
+        showAlert('Failed to load session: ' + error.message, 'error');
+    }
+}
+
+async function deleteSession(id) {
+    if (!confirm('Delete this session?')) return;
+    try {
+        await fetch(`${API_BASE}/session/${id}`, { method: 'DELETE' });
+        loadHistory();
+        showAlert('Session deleted', 'success');
+    } catch (error) {
+        showAlert('Failed to delete: ' + error.message, 'error');
+    }
+}
+
+// ========== EXPORT ==========
+async function exportSession(format) {
+    if (!currentSession) {
+        showAlert('No session to export', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/export/${currentSession}?format=${format}`);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `session_export.${format === 'json' ? 'json' : 'csv'}`;
+        a.click();
+        showAlert(`Exported as ${format.toUpperCase()}`, 'success');
+    } catch (error) {
+        showAlert('Export failed: ' + error.message, 'error');
+    }
+}
+
+// ========== UI HELPERS ==========
+function resetForm() {
+    currentData = null;
+    currentSession = null;
+    document.getElementById('log-zone').classList.remove('loaded');
+    document.getElementById('log-name').innerHTML = '';
+    document.getElementById('log-input').value = '';
+    document.getElementById('results-section').classList.remove('active');
+    document.getElementById('analyze-btn').disabled = true;
+    document.getElementById('reset-btn').style.display = 'none';
+}
+
+function showAlert(message, type) {
+    const alert = document.getElementById('alert');
+    alert.textContent = message;
+    alert.className = `alert show alert-${type}`;
+    setTimeout(() => alert.classList.remove('show'), 3000);
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PowerSense — AI Power Analyzer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f5f5;--surface:#ffffff;--surface2:#fafafa;--surface3:#f0f0f0;
+  --border:#e0e0e0;--border2:#d0d0d0;--text:#212121;--muted:#666666;
+  --accent:#1976d2;--accent-glow:rgba(25,118,210,0.08);
+  --green:#388e3c;--green-dim:#e8f5e9;--red:#d32f2f;--red-dim:#ffebee;
+  --amber:#f57c00;--amber-dim:#fff3e0;--purple:#7b1fa2;--purple-dim:#f3e5f5;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;--mono:'Courier New',monospace;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+header{position:sticky;top:0;z-index:100;background:var(--surface);border-bottom:1px solid var(--border);padding:0 2rem;height:64px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-mark{width:36px;height:36px;border-radius:6px;background:var(--accent);border:none;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+.logo-mark::before{display:none}
+.logo-mark svg{width:18px;height:18px;stroke:#ffffff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;position:relative;z-index:1}
+.logo-name{font-size:18px;font-weight:600;letter-spacing:0;color:var(--text)}
+.logo-name span{color:var(--accent)}
+.status-pill{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);padding:6px 14px;border-radius:4px;}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--muted)}
+.status-dot.live{background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
+
+main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:2rem 1.5rem 3rem}
+
+.hero{margin-bottom:2rem}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.hero-label{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--accent);border:1px solid var(--accent);padding:6px 12px;border-radius:4px;margin-bottom:1rem;letter-spacing:0;background:var(--accent-glow);}
+.hero h1{font-size:32px;font-weight:600;letter-spacing:0;line-height:1.2;margin-bottom:.5rem;color:var(--text)}
+.hero h1 .accent{color:var(--accent)}
+.hero-sub{font-size:15px;color:var(--muted);max-width:500px;line-height:1.6;font-weight:400}
+
+/* TARIFF SETTINGS */
+.settings-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.5rem;margin-bottom:1.5rem;}
+.settings-row{display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap}
+.settings-label{font-size:13px;color:var(--muted);font-family:var(--font);white-space:nowrap;font-weight:500}
+.settings-input{background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--font);font-size:13px;padding:8px 12px;width:140px;outline:none;transition:border-color .2s}
+.settings-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(25,118,210,0.1)}
+.settings-hint{font-size:12px;color:var(--muted);font-family:var(--font)}
+
+/* UPLOAD */
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.5rem;}
+@media(max-width:600px){.upload-grid{grid-template-columns:1fr}}
+.upload-card{background:var(--surface);border:2px dashed var(--border2);border-radius:8px;padding:2rem 1.5rem;cursor:pointer;transition:all 0.2s ease;position:relative;overflow:hidden;text-align:center;}
+.upload-card::before{display:none}
+.upload-card:hover::before,.upload-card.drag::before{display:none}
+.upload-card:hover,.upload-card.drag{border-color:var(--accent);background:var(--accent-glow)}
+.upload-card.loaded{border-style:solid;border-color:var(--green);background:var(--green-dim)}
+.upload-card.loaded::before{display:none}
+.upload-icon-wrap{width:48px;height:48px;border-radius:6px;display:flex;align-items:center;justify-content:center;margin:0 auto .9rem;border:1px solid var(--border);background:var(--surface2);transition:all 0.2s;position:relative;z-index:1}
+.upload-card:hover .upload-icon-wrap{border-color:var(--accent);background:var(--accent-glow)}
+.upload-card.loaded .upload-icon-wrap{border-color:var(--green);background:var(--green-dim)}
+.upload-icon-wrap svg{width:22px;height:22px;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;transition:stroke .2s}
+.card-log .upload-icon-wrap svg{stroke:var(--accent)}
+.card-model .upload-icon-wrap svg{stroke:var(--purple)}
+.upload-card.loaded .upload-icon-wrap svg{stroke:var(--green)}
+.upload-title{font-size:14px;font-weight:600;margin-bottom:4px;position:relative;z-index:1;color:var(--text)}
+.upload-hint{font-size:12px;color:var(--muted);font-family:var(--font);position:relative;z-index:1}
+.file-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-family:var(--font);color:var(--green);background:var(--green-dim);border:1px solid var(--green);padding:4px 10px;border-radius:4px;margin-top:10px;position:relative;z-index:1}
+input[type=file]{display:none}
+
+/* ACTION */
+.action-bar{display:flex;align-items:center;gap:12px;margin-bottom:2rem;flex-wrap:wrap;}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:4px;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;background:var(--surface2);color:var(--text);transition:all 0.2s;letter-spacing:0;}
+.btn:hover{background:#ebebeb;transform:none}
+.btn:active{transform:scale(0.98)}
+.btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.btn-primary{background:var(--accent);color:#ffffff;border-color:var(--accent);box-shadow:0 2px 4px rgba(25,118,210,0.2);}
+.btn-primary:hover{background:#1565c0;box-shadow:0 4px 8px rgba(25,118,210,0.3)}
+.btn:disabled{opacity:.5;cursor:default;pointer-events:none;transform:none}
+.hint{font-size:12px;color:var(--muted);font-family:var(--font)}
+
+/* SECTION */
+.section-label{font-size:12px;font-weight:600;letter-spacing:0;color:var(--accent);text-transform:uppercase;font-family:var(--font);margin-bottom:1rem;display:flex;align-items:center;gap:8px;}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* FRIENDLY SUMMARY BANNER */
+.summary-banner{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.5rem 1.75rem;margin-bottom:1.5rem;position:relative;overflow:hidden;}
+.summary-banner::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--green),var(--accent));}
+.summary-greeting{font-size:18px;font-weight:600;margin-bottom:.5rem;line-height:1.3;color:var(--text)}
+.summary-body{font-size:14px;color:var(--muted);line-height:1.7;max-width:700px}
+.summary-body strong{color:var(--text);font-weight:600}
+
+/* BILL CARD */
+.bill-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:1.5rem}
+.bill-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem 1.2rem;position:relative;overflow:hidden;transition:border-color .2s,transform .2s;}
+.bill-card:hover{border-color:var(--border2);transform:translateY(-1px)}
+.bill-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.bill-card.c-accent::before{background:var(--accent)}
+.bill-card.c-green::before{background:var(--green)}
+.bill-card.c-amber::before{background:var(--amber)}
+.bill-card.c-red::before{background:var(--red)}
+.bill-card.c-purple::before{background:var(--purple)}
+.bill-label{font-size:11px;color:var(--muted);font-family:var(--font);letter-spacing:0;margin-bottom:6px;text-transform:uppercase;font-weight:600}
+.bill-value{font-size:22px;font-weight:600;letter-spacing:0;font-family:var(--font);color:var(--text)}
+.bill-value.c-accent{color:var(--accent)}
+.bill-value.c-green{color:var(--green)}
+.bill-value.c-amber{color:var(--amber)}
+.bill-value.c-red{color:var(--red)}
+.bill-value.c-purple{color:var(--purple)}
+.bill-sub{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.4}
+
+/* CHART */
+.charts-row{display:grid;grid-template-columns:3fr 2fr;gap:1.25rem;margin-bottom:1.5rem}
+@media(max-width:700px){.charts-row{grid-template-columns:1fr}}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.25rem}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.chart-title{font-size:12px;font-weight:600;color:var(--muted);font-family:var(--font);text-transform:uppercase;letter-spacing:0}
+.legend{display:flex;gap:15px}
+.leg-item{display:flex;align-items:center;gap:6px;font-size:12px;font-family:var(--font);color:var(--muted)}
+.leg-dot{width:6px;height:6px;border-radius:50%}
+.chart-wrap{position:relative;height:200px}
+
+/* EVENTS */
+.event-list{display:flex;flex-direction:column;gap:8px;margin-bottom:1.5rem}
+.event-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:6px;background:var(--surface);border:1px solid var(--border);transition:all .2s;}
+.event-item:hover{border-color:var(--border2);background:var(--surface2)}
+.event-item.critical{background:var(--red-dim);border-color:rgba(211,47,47,.2)}
+.event-item.warning{background:var(--amber-dim);border-color:rgba(245,124,0,.2)}
+.pulse{width:8px;height:8px;border-radius:50%;flex-shrink:0;position:relative;}
+.event-item.critical .pulse{background:var(--red)}
+.event-item.warning .pulse{background:var(--amber)}
+.pulse::before{content:'';position:absolute;inset:-3px;border-radius:50%;border:1px solid currentColor;opacity:.2;animation:ripple 2s infinite}
+@keyframes ripple{0%{transform:scale(1);opacity:.2}100%{transform:scale(2);opacity:0}}
+.event-item.critical .pulse::before{color:var(--red)}
+.event-item.warning .pulse::before{color:var(--amber)}
+.event-text{flex:1;font-size:13px;color:var(--text);font-weight:500}
+.event-plain{font-size:12px;color:var(--muted);margin-top:2px}
+.event-badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:3px;letter-spacing:0;text-transform:uppercase}
+.event-item.critical .event-badge{background:var(--red-dim);color:var(--red);border:1px solid rgba(211,47,47,.3)}
+.event-item.warning .event-badge{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(245,124,0,.3)}
+
+/* FRIENDLY INSIGHTS */
+.insights-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;margin-bottom:1.5rem}
+.insight-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.3rem;position:relative;overflow:hidden;transition:all .2s;}
+.insight-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+.insight-card::after{display:none}
+.insight-icon{width:38px;height:38px;border-radius:6px;display:flex;align-items:center;justify-content:center;margin-bottom:.75rem;border:1px solid}
+.insight-icon svg{width:18px;height:18px;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.i-blue .insight-icon{background:rgba(25,118,210,.08);border-color:rgba(25,118,210,.2)}
+.i-blue .insight-icon svg{stroke:var(--accent)}
+.i-green .insight-icon{background:rgba(56,142,60,.08);border-color:rgba(56,142,60,.2)}
+.i-green .insight-icon svg{stroke:var(--green)}
+.i-amber .insight-icon{background:rgba(245,124,0,.08);border-color:rgba(245,124,0,.2)}
+.i-amber .insight-icon svg{stroke:var(--amber)}
+.i-red .insight-icon{background:rgba(211,47,47,.08);border-color:rgba(211,47,47,.2)}
+.i-red .insight-icon svg{stroke:var(--red)}
+.i-purple .insight-icon{background:rgba(123,31,162,.08);border-color:rgba(123,31,162,.2)}
+.i-purple .insight-icon svg{stroke:var(--purple)}
+.insight-title{font-size:15px;font-weight:600;margin-bottom:.5rem;color:var(--text)}
+.insight-body{font-size:13px;color:var(--muted);line-height:1.6}
+.insight-body strong{color:var(--text);font-weight:600}
+
+/* HEALTH METER */
+.health-num{font-size:36px;font-weight:700;font-family:var(--mono);letter-spacing:0;line-height:1;color:var(--text)}
+.health-bar{height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;margin:.5rem 0 .4rem}
+.health-fill{height:100%;border-radius:3px;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+
+/* ACTIONS LIST */
+.action-list{list-style:none;display:flex;flex-direction:column;gap:8px;margin-top:.5rem}
+.action-list li{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--muted);line-height:1.55}
+.action-num{width:20px;height:20px;border-radius:50%;background:rgba(25,118,210,.1);border:1px solid rgba(25,118,210,.25);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:var(--accent);flex-shrink:0;margin-top:1px;font-family:var(--font)}
+
+.hidden{display:none!important}
+footer{position:relative;z-index:1;text-align:center;padding:2rem;font-size:12px;font-family:var(--font);color:var(--muted);border-top:1px solid var(--border);letter-spacing:0}
+::-webkit-scrollbar{width:8px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+</style>
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    </div>
+    <div class="logo-name">Power<span>Sense</span></div>
+  </div>
+  <div class="status-pill">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">READY</span>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="hero-label">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      Your personal energy advisor
+    </div>
+    <h1>Understand your<br><span class="accent">power in plain English</span></h1>
+    <p class="hero-sub">Upload your power log and get a simple, friendly breakdown of how your electricity is behaving — no technical knowledge needed.</p>
+  </div>
+
+  <!-- TARIFF SETTINGS -->
+  <div class="settings-card">
+    <div class="section-label">Electricity tariff settings</div>
+    <div class="settings-row">
+      <span class="settings-label">Cost per kWh (₦):</span>
+      <input class="settings-input" type="number" id="tariff" value="68" min="1" max="500" step="1"/>
+      <span class="settings-label">Appliance wattage (W):</span>
+      <input class="settings-input" type="number" id="wattage" value="0" min="0" max="5000" step="10" placeholder="e.g. 1500"/>
+      <span class="settings-hint">Leave wattage at 0 to use detected values</span>
+    </div>
+  </div>
+
+  <!-- UPLOAD -->
+  <div class="upload-grid">
+    <div class="upload-card card-log" id="log-zone" onclick="document.getElementById('log-input').click()">
+      <div class="upload-icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      </div>
+      <div class="upload-title">Your power log file</div>
+      <div class="upload-hint">.txt saved from Serial Bluetooth Monitor</div>
+      <div id="log-name"></div>
+    </div>
+    <div class="upload-card card-model" id="model-zone" onclick="document.getElementById('model-input').click()">
+      <div class="upload-icon-wrap">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>
+      </div>
+      <div class="upload-title">Your trained model</div>
+      <div class="upload-hint">power_model.json (optional but recommended)</div>
+      <div id="model-name"></div>
+    </div>
+  </div>
+  <input type="file" id="log-input" accept=".txt,.log,.csv">
+  <input type="file" id="model-input" accept=".json">
+
+  <div class="action-bar">
+    <button class="btn btn-primary" id="analyze-btn" onclick="runAnalysis()" disabled>
+      <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Analyse my power
+    </button>
+    <button class="btn" id="reset-btn" onclick="resetAll()" style="display:none">
+      <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+      Start over
+    </button>
+    <span class="hint" id="analyze-hint">Upload your log file to begin</span>
+  </div>
+
+  <div id="results" class="hidden">
+
+    <!-- FRIENDLY SUMMARY BANNER -->
+    <div class="summary-banner" id="summary-banner"></div>
+
+    <!-- BILL CARDS -->
+    <div style="margin-bottom:1.75rem">
+      <div class="section-label">Your electricity at a glance</div>
+      <div class="bill-grid" id="bill-grid"></div>
+    </div>
+
+    <!-- CHARTS -->
+    <div style="margin-bottom:1.75rem">
+      <div class="section-label">What your power looked like</div>
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Power readings over time</div>
+            <div class="legend">
+              <div class="leg-item"><div class="leg-dot" style="background:var(--accent)"></div>Normal</div>
+              <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div>Spike</div>
+              <div class="leg-item"><div class="leg-dot" style="background:var(--amber)"></div>Warning</div>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="line-chart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header"><div class="chart-title">How often each level appeared</div></div>
+          <div class="chart-wrap"><canvas id="dist-chart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EVENTS -->
+    <div style="margin-bottom:1.75rem" id="events-section">
+      <div class="section-label">Unusual moments detected</div>
+      <div class="event-list" id="event-list"></div>
+    </div>
+
+    <!-- INSIGHTS -->
+    <div style="margin-bottom:1.75rem">
+      <div class="section-label">What this means for you</div>
+      <div class="insights-grid" id="insights-grid"></div>
+    </div>
+
+  </div>
+</main>
+
+<footer>POWERSENSE &nbsp;·&nbsp; YOUR FRIENDLY ENERGY ADVISOR &nbsp;·&nbsp; WORKS 100% OFFLINE</footer>
+
+<script>
+let logData=null,modelData=null,lineChart=null,distChart=null;
+
+function setupDrop(id,cb){
+  const z=document.getElementById(id);
+  z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('drag')});
+  z.addEventListener('dragleave',()=>z.classList.remove('drag'));
+  z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('drag');if(e.dataTransfer.files[0])cb(e.dataTransfer.files[0])});
+}
+setupDrop('log-zone',loadLog);
+setupDrop('model-zone',loadModelFile);
+document.getElementById('log-input').addEventListener('change',e=>{if(e.target.files[0])loadLog(e.target.files[0])});
+document.getElementById('model-input').addEventListener('change',e=>{if(e.target.files[0])loadModelFile(e.target.files[0])});
+
+function loadLog(file){
+  const r=new FileReader();
+  r.onload=e=>{
+    logData=parseLog(e.target.result);
+    if(!logData.values.length){alert('No power readings found in this file.');return}
+    markLoaded('log-zone','log-name',file.name);
+    checkReady();
+  };
+  r.readAsText(file);
+}
+function loadModelFile(file){
+  const r=new FileReader();
+  r.onload=e=>{
+    try{modelData=JSON.parse(e.target.result);markLoaded('model-zone','model-name',file.name);checkReady()}
+    catch{alert('That does not look like a valid model file.')}
+  };
+  r.readAsText(file);
+}
+function markLoaded(zoneId,nameId,filename){
+  document.getElementById(zoneId).classList.add('loaded');
+  document.getElementById(nameId).innerHTML=`<div class="file-badge">✓ ${filename}</div>`;
+}
+function checkReady(){
+  document.getElementById('analyze-btn').disabled=!logData;
+  document.getElementById('analyze-hint').textContent=logData?'Ready — click Analyse my power':'Upload your log file to begin';
+}
+function parseLog(text){
+  const values=[],timestamps=[];
+  for(const line of text.split('\n')){
+    const p=line.trim().split(/\s+/);
+    if(p.length>=2){const v=parseFloat(p[1]);if(!isNaN(v)){values.push(v);timestamps.push(p[0])}}
+    else if(p.length===1){const v=parseFloat(p[0]);if(!isNaN(v)){values.push(v);timestamps.push(null)}}
+  }
+  return{values,timestamps};
+}
+
+function avg(a){return a.reduce((s,v)=>s+v,0)/a.length}
+function sd(a){const m=avg(a);return Math.sqrt(a.map(v=>(v-m)**2).reduce((s,v)=>s+v,0)/a.length)}
+function naira(n){return '₦'+n.toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function setStatus(t,live=false){
+  document.getElementById('status-text').textContent=t;
+  document.getElementById('status-dot').className='status-dot'+(live?' live':'');
+}
+
+function runAnalysis(){
+  if(!logData)return;
+  setStatus('ANALYSING',true);
+
+  const vals=logData.values,ts=logData.timestamps,n=vals.length;
+  const m=avg(vals),s=sd(vals),mn=Math.min(...vals),mx=Math.max(...vals);
+  const tariff=parseFloat(document.getElementById('tariff').value)||68;
+  const manualWattage=parseFloat(document.getElementById('wattage').value)||0;
+
+  const bm=modelData?modelData.global_stats.mean:m;
+  const bs=modelData?modelData.global_stats.std:s;
+  const at=modelData?modelData.zscore_params.anomaly_threshold:2.5;
+  const wt=modelData?modelData.zscore_params.warning_threshold:1.5;
+
+  // Anomaly detection
+  const anomalies=[];
+  vals.forEach((v,i)=>{
+    const z=bs===0?0:(v-bm)/bs;
+    if(Math.abs(z)>at)anomalies.push({i,v,z,ts:ts[i],level:'critical'});
+    else if(Math.abs(z)>wt)anomalies.push({i,v,z,ts:ts[i],level:'warning'});
+  });
+  const crit=anomalies.filter(a=>a.level==='critical').length;
+  const warn=anomalies.filter(a=>a.level==='warning').length;
+
+  // Trend
+  const xi=Array.from({length:n},(_,i)=>i),xm=avg(xi);
+  const denom=xi.map(x=>(x-xm)**2).reduce((a,b)=>a+b,0)||1;
+  const slope=xi.map((x,i)=>(x-xm)*(vals[i]-m)).reduce((a,b)=>a+b,0)/denom;
+  const nextVal=slope*n+(m-slope*xm);
+  const trendWord=slope>0.0001?'going up slightly':slope<-0.0001?'going down slightly':'very steady';
+
+  // ─── BILL ESTIMATION ───────────────────────────────────────────────────────
+  // Interval between readings (seconds) — infer from timestamps or assume 0.5s
+  let intervalSec=0.5;
+  if(ts[0]&&ts[1]){
+    try{
+      const parse=t=>{const[h,m2,s2]=t.split(':').map(parseFloat);return h*3600+m2*60+s2};
+      const diff=Math.abs(parse(ts[1])-parse(ts[0]));
+      if(diff>0&&diff<60)intervalSec=diff;
+    }catch{}
+  }
+
+  // Power in watts: if manual wattage given use it, else treat value as voltage
+  // and estimate current ~1A (safe default for display — user can override)
+  const avgPowerW=manualWattage>0?manualWattage:(m*1*1); // V × assumed 1A = approx W
+  const sessionSec=n*intervalSec;
+  const sessionHours=sessionSec/3600;
+  const sessionWh=avgPowerW*sessionHours;
+  const sessionKwh=sessionWh/1000;
+  const sessionCost=sessionKwh*tariff;
+
+  // Extrapolate to daily / monthly (based on session pattern)
+  const dailyHours=sessionHours>0?Math.min(24,24*(sessionHours)):8; // assume runs 8h/day if session < 1h
+  const dailyKwh=avgPowerW*dailyHours/1000;
+  const dailyCost=dailyKwh*tariff;
+  const monthlyCost=dailyCost*30;
+  const monthlyKwh=dailyKwh*30;
+
+  // Credits: how long will ₦1000 last?
+  const hoursPerK=dailyCost>0?1000/dailyCost*24:0;
+  const daysPerK=hoursPerK/24;
+
+  // Stability
+  const cv=s/m;
+  const stability=modelData
+    ?Math.round(modelData.stability_score)
+    :Math.round(Math.max(0,Math.min(100,(1-Math.min(cv*20,1))*50+(1-crit/n)*50)));
+
+  const healthColor=stability>=80?'var(--green)':stability>=60?'var(--amber)':'var(--red)';
+  const healthWord=stability>=80?'Excellent':stability>=60?'Fair':'Poor';
+
+  // ─── FRIENDLY SUMMARY ──────────────────────────────────────────────────────
+  const spikeLine=crit===0&&warn===0
+    ?'No unusual spikes or drops were detected — your power was rock solid the whole time.'
+    :crit>0
+      ?`There were <strong>${crit} unusual spike${crit>1?'s':''}</strong> where the power jumped to an unexpected level — worth keeping an eye on.`
+      :`There were <strong>${warn} small warning${warn>1?'s':''}</strong> — minor fluctuations that are probably nothing serious.`;
+
+  const trendLine=`The power was <strong>${trendWord}</strong> throughout the session.`;
+
+  const billLine=`Based on your readings, if this appliance runs at this level for a full day it would use about <strong>${dailyKwh.toFixed(3)} kWh</strong> and cost you roughly <strong>${naira(dailyCost)}</strong> per day — or around <strong>${naira(monthlyCost)}</strong> per month.`;
+
+  document.getElementById('summary-banner').innerHTML=`
+    <div class="summary-greeting">Here is what your power data is telling you</div>
+    <div class="summary-body">
+      Your log contains <strong>${n} readings</strong> captured over about <strong>${formatDuration(sessionSec)}</strong>.
+      The average reading was <strong>${m.toFixed(3)} V</strong>.
+      ${spikeLine}
+      ${trendLine}
+      ${billLine}
+    </div>`;
+
+  // ─── BILL CARDS ────────────────────────────────────────────────────────────
+  document.getElementById('bill-grid').innerHTML=`
+    <div class="bill-card c-accent">
+      <div class="bill-label">Session duration</div>
+      <div class="bill-value c-accent">${formatDuration(sessionSec)}</div>
+      <div class="bill-sub">${n} readings captured</div>
+    </div>
+    <div class="bill-card c-green">
+      <div class="bill-label">Energy used this session</div>
+      <div class="bill-value c-green">${sessionKwh.toFixed(4)} kWh</div>
+      <div class="bill-sub">That is ${sessionWh.toFixed(2)} watt-hours</div>
+    </div>
+    <div class="bill-card c-amber">
+      <div class="bill-label">Cost this session</div>
+      <div class="bill-value c-amber">${naira(sessionCost)}</div>
+      <div class="bill-sub">At ₦${tariff}/kWh tariff</div>
+    </div>
+    <div class="bill-card c-amber">
+      <div class="bill-label">Estimated daily cost</div>
+      <div class="bill-value c-amber">${naira(dailyCost)}</div>
+      <div class="bill-sub">${dailyKwh.toFixed(3)} kWh per day</div>
+    </div>
+    <div class="bill-card c-red">
+      <div class="bill-label">Estimated monthly cost</div>
+      <div class="bill-value c-red">${naira(monthlyCost)}</div>
+      <div class="bill-sub">${monthlyKwh.toFixed(2)} kWh per month</div>
+    </div>
+    <div class="bill-card c-purple">
+      <div class="bill-label">₦1,000 credit lasts</div>
+      <div class="bill-value c-purple">${daysPerK>=1?daysPerK.toFixed(1)+' days':Math.round(hoursPerK)+' hrs'}</div>
+      <div class="bill-sub">For this appliance alone</div>
+    </div>`;
+
+  renderLineChart(vals,anomalies);
+  renderDistChart(vals);
+  renderEvents(anomalies,ts);
+  renderInsights({vals,m,s,mn,mx,slope,nextVal,trendWord,stability,healthColor,healthWord,crit,warn,dailyCost,monthlyCost,sessionKwh,tariff,daysPerK,n,sessionSec});
+
+  document.getElementById('results').classList.remove('hidden');
+  document.getElementById('reset-btn').style.display='';
+  document.getElementById('analyze-hint').textContent=`Done — ${n} readings analysed`;
+  setStatus('DONE',false);
+  setTimeout(()=>document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'}),100);
+}
+
+function formatDuration(sec){
+  if(sec<60)return Math.round(sec)+'s';
+  if(sec<3600)return Math.round(sec/60)+'m '+Math.round(sec%60)+'s';
+  return (sec/3600).toFixed(1)+'h';
+}
+
+function renderLineChart(vals,anomalies){
+  const ctx=document.getElementById('line-chart').getContext('2d');
+  if(lineChart)lineChart.destroy();
+  const cs=new Set(anomalies.filter(a=>a.level==='critical').map(a=>a.i));
+  const ws=new Set(anomalies.filter(a=>a.level==='warning').map(a=>a.i));
+  lineChart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:vals.map((_,i)=>i+1),
+      datasets:[{
+        data:vals,borderColor:'#1976d2',borderWidth:2,
+        pointBackgroundColor:vals.map((_,i)=>cs.has(i)?'#d32f2f':ws.has(i)?'#f57c00':'rgba(25,118,210,0.2)'),
+        pointRadius:vals.map((_,i)=>cs.has(i)||ws.has(i)?5:2),
+        pointHoverRadius:vals.map((_,i)=>cs.has(i)||ws.has(i)?7:4),
+        tension:.3,fill:true,
+        backgroundColor:ctx2=>{
+          const g=ctx2.chart.ctx.createLinearGradient(0,0,0,200);
+          g.addColorStop(0,'rgba(25,118,210,0.08)');g.addColorStop(1,'rgba(25,118,210,0)');return g;
+        }
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:'#ffffff',borderColor:'#e0e0e0',borderWidth:1,
+        titleColor:'#212121',bodyColor:'#212121',
+        titleFont:{family:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto',size:12},bodyFont:{family:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto',size:12},
+        callbacks:{title:items=>`Reading #${items[0].dataIndex+1}`,body:items=>`${items[0].raw.toFixed(3)} V`}
+      }},
+      scales:{
+        x:{display:false},
+        y:{grid:{color:'rgba(224,224,224,0.3)'},ticks:{font:{family:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto',size:11},color:'#666666'}}
+      }
+    }
+  });
+}
+
+function renderDistChart(vals){
+  const ctx=document.getElementById('dist-chart').getContext('2d');
+  if(distChart)distChart.destroy();
+  const mn=Math.min(...vals),mx=Math.max(...vals);
+  const bins=10,size=(mx-mn)/bins||0.01;
+  const counts=Array(bins).fill(0);
+  vals.forEach(v=>{const i=Math.min(Math.floor((v-mn)/size),bins-1);counts[i]++});
+  const m=avg(vals),s=sd(vals);
+  const colors=counts.map((_,i)=>{
+    const bc=mn+(i+0.5)*size;
+    const z=Math.abs((bc-m)/(s||0.001));
+    return z>2.5?'rgba(211,47,47,0.6)':z>1.5?'rgba(245,124,0,0.6)':'rgba(25,118,210,0.5)';
+  });
+  distChart=new Chart(ctx,{
+    type:'bar',
+    data:{labels:counts.map((_,i)=>(mn+i*size).toFixed(3)),datasets:[{data:counts,backgroundColor:colors,borderWidth:0,borderRadius:4}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:'#ffffff',borderColor:'#e0e0e0',borderWidth:1,
+        titleColor:'#212121',bodyColor:'#212121',
+        titleFont:{family:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto',size:12},bodyFont:{family:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto',size:12},
+        callbacks:{title:i=>`Around ${i[0].label} V`,body:i=>`${i[0].raw} readings`}
+      }},
+      scales:{
+        x:{ticks:{font:{family:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto',size:11},color:'#666666'},grid:{display:false}},
+        y:{grid:{color:'rgba(224,224,224,0.3)'},ticks:{font:{family:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto',size:11},color:'#666666'}}
+      }
+    }
+  });
+}
+
+function renderEvents(anomalies,ts){
+  const sec=document.getElementById('events-section');
+  const list=document.getElementById('event-list');
+  if(anomalies.length===0){
+    sec.innerHTML=`<div class="section-label">Unusual moments detected</div>
+      <div style="padding:1rem 0;font-size:14px;color:var(--muted)">
+        Nothing unusual detected — your power was consistent throughout the entire session. That is a great sign!
+      </div>`;
+    return;
+  }
+  const top=anomalies.slice(0,10);
+  list.innerHTML=top.map(a=>{
+    const plain=a.level==='critical'
+      ?`The reading jumped to <strong>${a.v.toFixed(3)} V</strong> which is noticeably different from the normal range.`
+      :`A small fluctuation to <strong>${a.v.toFixed(3)} V</strong> — probably fine but worth noting.`;
+    return`<div class="event-item ${a.level}">
+      <div class="pulse"></div>
+      <div style="flex:1">
+        <div class="event-text">${a.ts?'At '+a.ts+' — ':''} Reading #${a.i+1}</div>
+        <div class="event-plain">${plain}</div>
+      </div>
+      <span class="event-badge">${a.level==='critical'?'Spike':'Warning'}</span>
+    </div>`;
+  }).join('');
+  if(anomalies.length>10){
+    list.insertAdjacentHTML('beforeend',`<div style="font-size:12px;color:var(--muted);padding:8px 0">...and ${anomalies.length-10} more events. Most are minor fluctuations.</div>`);
+  }
+}
+
+function renderInsights({vals,m,s,mn,mx,slope,nextVal,trendWord,stability,healthColor,healthWord,crit,warn,dailyCost,monthlyCost,sessionKwh,tariff,daysPerK,n,sessionSec}){
+
+  const recs=[];
+  if(crit>0)recs.push(`Those ${crit} power spike${crit>1?'s':''} could be caused by a faulty connection, the appliance starting up, or electrical interference. Check the wiring.`);
+  if(slope>0.0001)recs.push('Your power is slowly creeping up. If this continues, your electricity bill will increase. Check if the appliance is working harder than usual.');
+  if(slope<-0.0001)recs.push('Your power is slowly dropping. This can happen when a battery is draining or a connection is getting loose.');
+  if(s<0.005)recs.push('Your power source is very stable. This is exactly what you want to see — it means the appliance is running efficiently.');
+  if(monthlyCost>5000)recs.push(`This appliance alone costs an estimated ${new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN'}).format(monthlyCost)} per month. You might save money by using it less during peak hours.`);
+  if(crit===0&&warn<3&&s<0.01)recs.push('Everything looks healthy. No action needed right now.');
+
+  document.getElementById('insights-grid').innerHTML=`
+    <div class="insight-card i-green">
+      <div class="insight-icon">
+        <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      </div>
+      <div class="insight-title">Power health: ${healthWord}</div>
+      <div class="health-num" style="color:${healthColor}">${stability}<span style="font-size:18px;color:var(--muted);font-weight:400"> / 100</span></div>
+      <div class="health-bar"><div class="health-fill" style="width:${stability}%;background:${healthColor}"></div></div>
+      <div class="insight-body">
+        ${stability>=80
+          ?'Your power supply is rock solid. The readings are consistent and well within safe range — nothing to worry about here.'
+          :stability>=60
+          ?'Your power supply is mostly fine but has some inconsistencies. Keep an eye on it, especially if this is a sensitive appliance.'
+          :'Your power supply has some concerning patterns. There are frequent spikes or drops that could affect your appliances or indicate a fault.'}
+      </div>
+    </div>
+
+    <div class="insight-card i-amber">
+      <div class="insight-icon">
+        <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      </div>
+      <div class="insight-title">What this costs you</div>
+      <div class="insight-body">
+        This appliance is estimated to cost about <strong style="color:var(--amber)">${new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN'}).format(dailyCost)}</strong> per day
+        and <strong style="color:var(--red)">${new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN'}).format(monthlyCost)}</strong> per month
+        at the current ₦${tariff}/kWh rate.
+        ${daysPerK>=1?`A ₦1,000 prepaid credit would last about <strong style="color:var(--green)">${daysPerK.toFixed(1)} days</strong> on this appliance alone.`:''}
+        ${monthlyCost<500?'That is quite affordable — this is a low-consumption device.':monthlyCost<3000?'That is a moderate cost — reasonable for most households.':'That is on the higher side. Consider if this appliance is being used as efficiently as possible.'}
+      </div>
+    </div>
+
+    <div class="insight-card i-blue">
+      <div class="insight-icon">
+        <svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      </div>
+      <div class="insight-title">What happens next</div>
+      <div class="insight-body">
+        Based on what we saw, the next reading will likely be around <strong style="color:var(--accent)">${nextVal.toFixed(3)} V</strong>.
+        The power is <strong>${trendWord}</strong>.
+        ${slope>0.0002?'If this upward trend continues, your consumption could increase over time.':
+          slope<-0.0002?'If this downward trend continues, something might be losing power or disconnecting.':
+          'A flat trend is ideal — it means the appliance is drawing a consistent, predictable amount of power.'}
+      </div>
+    </div>
+
+    <div class="insight-card i-${crit>0?'red':'purple'}">
+      <div class="insight-icon">
+        <svg viewBox="0 0 24 24">${crit>0
+          ?'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'
+          :'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'}
+        </svg>
+      </div>
+      <div class="insight-title">${crit>0?'Spikes detected':'All quiet'}</div>
+      <div class="insight-body">
+        ${crit===0&&warn===0
+          ?'No unusual events were detected during this session. Every reading stayed within the expected range. Your power supply is behaving exactly as it should.'
+          :crit>0
+          ?`<strong style="color:var(--red)">${crit} spike${crit>1?'s':''}</strong> and <strong style="color:var(--amber)">${warn} warning${warn>1?'s':''}</strong> were detected. Spikes happen when something causes a sudden jump in power — this could be the appliance switching on, a loose wire, or interference from another device.`
+          :`<strong style="color:var(--amber)">${warn} small warning${warn>1?'s':''}</strong> were noted. These are minor fluctuations — probably normal behaviour for this appliance, but something to watch if they become frequent.`}
+      </div>
+    </div>
+
+    <div class="insight-card i-green">
+      <div class="insight-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <div class="insight-title">What you should do</div>
+      <div class="insight-body">
+        <ul class="action-list">
+          ${recs.map((r,i)=>`<li><div class="action-num">${i+1}</div><span>${r}</span></li>`).join('')}
+        </ul>
+      </div>
+    </div>
+
+    ${modelData?`
+    <div class="insight-card i-blue">
+      <div class="insight-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>
+      </div>
+      <div class="insight-title">Compared to your baseline</div>
+      <div class="insight-body">
+        Your trained model was built from <strong>${modelData.trained_on}</strong> readings.
+        The normal average for your setup is <strong>${modelData.global_stats.mean.toFixed(3)} V</strong>.
+        This session averaged <strong>${m.toFixed(3)} V</strong> — 
+        ${Math.abs(m-modelData.global_stats.mean)<0.01
+          ?'which is perfectly in line with your baseline. No drift detected.'
+          :`a difference of <strong>${Math.abs(m-modelData.global_stats.mean).toFixed(4)} V</strong> from normal. ${m>modelData.global_stats.mean?'Slightly higher than usual.':'Slightly lower than usual.'}`}
+        Training stability score: <strong style="color:var(--green)">${modelData.stability_score}/100</strong>.
+      </div>
+    </div>`:''}
+  `;
+}
+
+function resetAll(){
+  logData=null;modelData=null;
+  ['log-zone','model-zone'].forEach(id=>document.getElementById(id).classList.remove('loaded'));
+  ['log-name','model-name'].forEach(id=>document.getElementById(id).innerHTML='');
+  ['log-input','model-input'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('results').classList.add('hidden');
+  document.getElementById('reset-btn').style.display='none';
+  document.getElementById('analyze-btn').disabled=true;
+  document.getElementById('analyze-hint').textContent='Upload your log file to begin';
+  if(lineChart){lineChart.destroy();lineChart=null}
+  if(distChart){distChart.destroy();distChart=null}
+  setStatus('READY',false);
+}
+</script>
+</body>
+</html>
